@@ -1,0 +1,253 @@
+#include <Arduino.h>
+#include <FastLED.h>
+ 
+uint8_t patternCounter = 0;
+ 
+#define LED_PIN  12
+#define COLOR_ORDER GRB
+#define CHIPSET     WS2812B
+#define BRIGHTNESS 64
+#define MAX_DIMENSION ((kMatrixWidth>kMatrixHeight) ? kMatrixWidth : kMatrixHeight)   // Largest dimension of matrix
+
+ 
+const uint8_t kMatrixWidth = 19;
+const uint8_t kMatrixHeight = 12;
+ 
+#define NUM_LEDS (kMatrixWidth * kMatrixHeight)
+CRGB leds[NUM_LEDS];
+ 
+#define LAST_VISIBLE_LED 153
+uint8_t XY (uint8_t x, uint8_t y) {
+  // any out of bounds address maps to the first hidden pixel
+  if ( (x >= kMatrixWidth) || (y >= kMatrixHeight) ) {
+    return (LAST_VISIBLE_LED + 1);
+  }
+ 
+  const uint8_t XYTable[] = {
+   154, 164, 165,  32,  33,  49, 176, 187, 188, 191, 192, 199, 200, 111, 112, 131, 214, 220, 221,
+   155,  12,  13,  31,  34,  48,  50,  61,  62,  81,  82,  97,  98, 110, 113, 130, 132, 148, 222,
+     0,  11,  14,  30,  35,  47,  51,  60,  63,  80,  83,  96,  99, 109, 114, 129, 133, 147, 149,
+     1,  10,  15,  29,  36,  46,  52,  59,  64,  79,  84,  95, 100, 108, 115, 128, 134, 146, 150,
+     2,   9,  16,  28, 169, 175, 177, 186,  65,  78,  85, 198, 201, 209, 210, 127, 135, 145, 151,
+     3,   8,  17,  27, 170, 174, 178, 185,  66,  77,  86, 197, 202, 208, 211, 126, 136, 144, 152,
+     4,   7,  18,  26, 171, 173, 179, 184,  67,  76,  87, 196, 203, 207, 212, 125, 137, 143, 153,
+   156,   6,  19,  25,  37, 172, 180, 183,  68,  75,  88, 195, 204, 206, 116, 124, 138, 142, 223,
+   157,   5,  20,  24,  38,  45,  53,  58,  69,  74,  89,  94, 101, 107, 117, 123, 139, 141, 224,
+   158, 163,  21,  23,  39,  44,  54,  57,  70,  73,  90,  93, 102, 106, 118, 122, 140, 219, 225,
+   159, 162, 166,  22,  40,  43,  55,  56,  71,  72,  91,  92, 103, 105, 119, 121, 215, 218, 226,
+   160, 161, 167, 168,  41,  42, 181, 182, 189, 190, 193, 194, 205, 104, 120, 213, 216, 217, 227
+  };
+ 
+  uint8_t i = (y * kMatrixWidth) + x;
+  uint8_t j = XYTable[i];
+  return j;
+}
+ 
+void setup() {
+  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
+  FastLED.setBrightness( BRIGHTNESS );
+}
+ 
+//#define NUM_LEDS  154
+//CRGB leds[NUM_LEDS];
+ 
+//void setup() {
+//  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+//  FastLED.setBrightness(50);
+//  Serial.begin(57600);
+//}
+ 
+void loop() {
+ 
+  switch (patternCounter) {
+    case 0:
+      movingDots();
+      break;
+    case 1:
+      rainbowBeat();
+      break;
+    case 2:
+      redWhiteBlue();
+      break;
+    case 3:
+      matrix();
+      break;
+    case 4:
+      rainbow();
+      break;
+    case 5:
+      fire2012();
+      break;
+//    case 6:
+//      DrawMarquee();
+//      break;
+      
+  }
+ 
+  EVERY_N_SECONDS(6.5) {
+    nextPattern();
+  }
+  
+  FastLED.show();
+}
+ 
+void nextPattern() {
+  patternCounter = (patternCounter + 1) % 6;          // Change the number after the % to the number of patterns you have
+}
+ 
+//------- Put your patterns below -------//
+ 
+void movingDots() {
+ 
+  
+  uint16_t posBeat  = beatsin16(30, 0, NUM_LEDS - 1, 0, 0);
+  uint16_t posBeat2 = beatsin16(60, 0, NUM_LEDS - 1, 0, 0);
+ 
+  uint16_t posBeat3 = beatsin16(30, 0, NUM_LEDS - 1, 0, 32767);
+  uint16_t posBeat4 = beatsin16(60, 0, NUM_LEDS - 1, 0, 32767);
+ 
+  // Wave for LED color
+  uint8_t colBeat  = beatsin8(45, 0, 255, 0, 0);
+ 
+  leds[(posBeat + posBeat2) / 2]  = CHSV(colBeat, 255, 255);
+  leds[(posBeat3 + posBeat4) / 2]  = CHSV(colBeat, 255, 255);
+ 
+  fadeToBlackBy(leds, NUM_LEDS, 10);
+}
+ 
+//-----------------------------------------------------------------------------
+
+ 
+void rainbowBeat() {
+  
+  uint16_t beatA = beatsin16(30, 0, 255);
+  uint16_t beatB = beatsin16(20, 0, 255);
+  fill_rainbow(leds, NUM_LEDS, (beatA+beatB)/2, 8);
+}
+ 
+//-----------------------------------------------------------------------------
+
+ 
+void redWhiteBlue() {
+ 
+  uint16_t sinBeat   = beatsin16(30, 0, NUM_LEDS - 1, 0, 0);
+  uint16_t sinBeat2  = beatsin16(30, 0, NUM_LEDS - 1, 0, 21845);
+  uint16_t sinBeat3  = beatsin16(30, 0, NUM_LEDS - 1, 0, 43690);
+ 
+  leds[sinBeat]   = CRGB::Blue;
+  leds[sinBeat2]  = CRGB::Red;
+  leds[sinBeat3]  = CRGB::White;
+  
+  fadeToBlackBy(leds, NUM_LEDS, 10);
+}
+ 
+//-----------------------------------------------------------------------------
+
+
+ class Matrix {
+  public:
+
+};
+
+void matrix() {
+      long previousTime = 0;
+
+  if(millis() - previousTime >= 75) {
+    // Move bright spots downward
+    for (int row = kMatrixHeight - 1; row >= 0; row--) {
+      for (int col = 0; col < kMatrixWidth; col++) {
+        if (leds[XY(col, row)] == CRGB(175,255,175)) {
+          leds[XY(col, row)] = CRGB(27,200,39); // create trail
+          if (row < kMatrixHeight - 1) leds[XY(col, row + 1)] = CRGB(175,255,175);
+        }
+      }
+    }
+    
+    // Fade all leds
+    for(int i = 0; i < NUM_LEDS; i++) {
+      if (leds[i].g != 255) leds[i].nscale8(192); // only fade trail
+    }
+
+    // Spawn new falling spots
+    if (random8(2) == 0) // lower number == more frequent spawns
+    {
+      int8_t spawnX = random8(kMatrixWidth);
+      leds[XY(spawnX, 0)] = CRGB(175,255,175 );
+    }
+
+    FastLED.show();
+    previousTime = millis();
+  }
+  return ;
+}
+
+//-----------------------------------------------------------------------------
+
+void rainbow()
+{
+  uint32_t ms = millis();
+  int32_t yHueDelta32 = ((int32_t)cos16( ms * (27/1) ) * (350 / kMatrixWidth));
+  int32_t xHueDelta32 = ((int32_t)cos16( ms * (39/1) ) * (310 / kMatrixHeight));
+  DrawOneFrame( ms / 65536, yHueDelta32 / 32768, xHueDelta32 / 32768);
+  if( ms < 5000 ) {
+    FastLED.setBrightness( scale8( BRIGHTNESS, (ms * 256) / 5000));
+  } else {
+    FastLED.setBrightness(BRIGHTNESS);
+  }
+  FastLED.show();
+}
+
+void DrawOneFrame( byte startHue8, int8_t yHueDelta8, int8_t xHueDelta8)
+{
+  byte lineStartHue = startHue8;
+  for( byte y = 0; y < kMatrixHeight; y++) {
+    lineStartHue += yHueDelta8;
+    byte pixelHue = lineStartHue;      
+    for( byte x = 0; x < kMatrixWidth; x++) {
+      pixelHue += xHueDelta8;
+      leds[ XY(x, y)]  = CHSV( pixelHue, 255, 255);
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+
+void fire2012() {
+    const uint8_t cooling = 55;
+    const uint8_t sparking = 120;
+    bool gReverseDirection = false;
+  static byte heat[NUM_LEDS];
+
+  // Step 1.  Cool down every cell a little
+  for( int i = 0; i < NUM_LEDS; i++) {
+    heat[i] = qsub8( heat[i],  random8(0, ((cooling * 10) / NUM_LEDS) + 2));
+  }
+
+  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+  for( int k= NUM_LEDS - 1; k >= 2; k--) {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
+  }
+  
+  // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
+  if( random8() < sparking ) {
+    int y = random8(7);
+    heat[y] = qadd8( heat[y], random8(160,255) );
+  }
+
+  // Step 4.  Map from heat cells to LED colors
+  for( int j = 0; j < NUM_LEDS; j++) {
+    CRGB color = HeatColor( heat[j]);
+    int pixelnumber;
+    if( gReverseDirection ) {
+      pixelnumber = (NUM_LEDS-1) - j;
+    } else {
+      pixelnumber = j;
+    }
+    leds[pixelnumber] = color;
+  }
+}
+
+
+//-----------------------------------------------------------------------------
+
